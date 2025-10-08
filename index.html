@@ -1,1 +1,673 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wedstrijd Score Tracker</title>
+  <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-/p4ZkqY1qjK6PiJPk+AnxF5bkK21xXBRZk08dCMm7K6UVx/F4WPt3sDLRgTIbEG3jm+jGq117ujCekvd1Qcpvg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
+    :root {
+      font-family: "Poppins", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: #0b311a;
+      background-color: #0b311a;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      background: radial-gradient(circle at top, rgba(13, 148, 136, 0.55), rgba(4, 120, 87, 0.85)),
+        #0b311a;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0.08) 0,
+          rgba(255, 255, 255, 0.08) 3px,
+          transparent 3px,
+          transparent 120px
+        ),
+        repeating-linear-gradient(
+          0deg,
+          rgba(34, 197, 94, 0.18) 0,
+          rgba(34, 197, 94, 0.18) 3px,
+          transparent 3px,
+          transparent 140px
+        );
+      opacity: 0.6;
+      z-index: 0;
+    }
+
+    .app-wrapper {
+      max-width: 960px;
+      width: 100%;
+      padding: 2.5rem 1.5rem 3.5rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      color: #f0fdf4;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.9rem, 5vw, 2.8rem);
+      color: #f0fdf4;
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    h1::before {
+      content: "⚽";
+      font-size: 1.8rem;
+    }
+
+    .team-inputs {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .team-inputs label {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.9rem;
+      color: rgba(226, 232, 240, 0.86);
+    }
+
+    input[type="text"] {
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(209, 213, 219, 0.5);
+      font-size: 1rem;
+      transition: border-color 0.2s ease;
+      background: rgba(15, 118, 110, 0.12);
+      color: #ecfeff;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #bbf7d0;
+      box-shadow: 0 0 0 4px rgba(134, 239, 172, 0.35);
+    }
+
+    .scoreboard {
+      margin: 2rem 0;
+      padding: 1.5rem;
+      background: linear-gradient(145deg, rgba(13, 148, 136, 0.95), rgba(6, 95, 70, 0.92));
+      border-radius: 1.5rem;
+      box-shadow: 0 20px 45px rgba(7, 89, 73, 0.35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .scoreboard::before {
+      content: "";
+      position: absolute;
+      inset: -60% 30% 10% -30%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent 60%);
+      opacity: 0.7;
+      transform: rotate(-6deg);
+    }
+
+    .scoreboard::after {
+      content: "";
+      position: absolute;
+      inset: 25% -50% -40% 55%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 65%);
+      opacity: 0.4;
+      transform: rotate(12deg);
+    }
+
+    .scoreboard-top {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .score-number {
+      font-size: clamp(2.5rem, 6vw, 3.5rem);
+      font-weight: 700;
+      color: #facc15;
+      text-shadow: 0 4px 14px rgba(15, 23, 42, 0.45);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .timer {
+      margin-top: 1.5rem;
+      display: grid;
+      gap: 0.8rem;
+      color: #ecfdf5;
+    }
+
+    .timer-display {
+      display: grid;
+      justify-items: center;
+      gap: 0.2rem;
+    }
+
+    .timer-label {
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: rgba(226, 232, 240, 0.8);
+    }
+
+    .timer-time {
+      font-size: clamp(2.3rem, 5vw, 3rem);
+      font-weight: 700;
+      color: #fef9c3;
+      text-shadow: 0 6px 14px rgba(15, 23, 42, 0.35);
+    }
+
+    .timer-secondary {
+      font-size: 0.9rem;
+      color: rgba(240, 253, 244, 0.75);
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.2);
+      overflow: hidden;
+    }
+
+    .progress-bar span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #facc15, #f97316);
+      transition: width 0.3s ease;
+    }
+
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: center;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 999px;
+      padding: 0.6rem 1.4rem;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #052e16;
+      background: linear-gradient(120deg, #facc15, #f97316);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+      box-shadow: 0 12px 24px rgba(15, 118, 110, 0.35);
+    }
+
+    button.secondary {
+      background: linear-gradient(120deg, #4ade80, #10b981);
+    }
+
+    button.danger {
+      background: linear-gradient(120deg, #f87171, #ef4444);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    button:not(:disabled):hover {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 16px 25px rgba(15, 23, 42, 0.25);
+      filter: brightness(1.05);
+    }
+
+    .quarter-info {
+      margin-top: 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.95rem;
+      color: rgba(240, 253, 244, 0.85);
+    }
+
+    .timeline,
+    .quarter-table {
+      margin-top: 1.5rem;
+      background: rgba(15, 118, 110, 0.85);
+      border-radius: 1.25rem;
+      box-shadow: 0 14px 35px rgba(4, 47, 46, 0.45);
+      padding: 1.4rem;
+      backdrop-filter: blur(4px);
+      color: #f0fdf4;
+    }
+
+    .timeline h2,
+    .quarter-table h2 {
+      margin-top: 0;
+      color: #fefce8;
+      font-size: 1.2rem;
+      letter-spacing: 0.05em;
+    }
+
+    .timeline ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .timeline-entry {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      background: rgba(15, 118, 110, 0.55);
+      border-radius: 0.75rem;
+      border-left: 6px solid #facc15;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .timeline-entry.opponent {
+      border-left-color: #fb7185;
+    }
+
+    .timeline-entry strong {
+      font-size: 1.05rem;
+      color: #fefce8;
+    }
+
+    .timeline-entry span {
+      color: rgba(226, 232, 240, 0.8);
+    }
+
+    .timeline-entry button {
+      background: transparent;
+      color: #fecaca;
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.5rem;
+      box-shadow: none;
+    }
+
+    .timeline-entry button:hover {
+      background: rgba(254, 226, 226, 0.12);
+      transform: none;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.75rem;
+      color: #0f172a;
+      overflow: hidden;
+      border-radius: 1rem;
+    }
+
+    th,
+    td {
+      padding: 0.75rem;
+      text-align: center;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.95rem;
+      background: rgba(248, 250, 252, 0.9);
+    }
+
+    th {
+      background: rgba(254, 243, 199, 0.95);
+      font-weight: 700;
+      color: #422006;
+    }
+
+    @media (max-width: 640px) {
+      .timeline-entry {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.35rem;
+      }
+
+      .timeline-entry button {
+        align-self: flex-end;
+      }
+
+      header {
+        justify-content: center;
+        text-align: center;
+      }
+
+      .team-inputs {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="app-wrapper">
+    <header>
+      <h1>Wedstrijd Score Tracker</h1>
+      <div class="team-inputs">
+        <label>
+          Ons team
+          <input type="text" v-model="teamName" placeholder="Bijv. FC Junioren" />
+        </label>
+        <label>
+          Tegenstander
+          <input type="text" v-model="opponentName" placeholder="Bijv. SV Rivalen" />
+        </label>
+      </div>
+    </header>
+
+    <section class="scoreboard">
+      <div class="scoreboard-top">
+        <div>
+          <h2>{{ teamName }}</h2>
+          <div class="score-number">{{ teamScore }}</div>
+        </div>
+        <div>
+          <h2>{{ opponentName }}</h2>
+          <div class="score-number" style="color:#fb7185">{{ opponentScore }}</div>
+        </div>
+        <div class="timer">
+          <div class="timer-display">
+            <span class="timer-label">Nog te spelen</span>
+            <span class="timer-time">{{ formattedRemaining }}</span>
+            <span class="timer-secondary">Verstreken: {{ formattedElapsed }}</span>
+          </div>
+          <div class="progress-bar">
+            <span :style="{ width: progressPercent + '%' }"></span>
+          </div>
+          <div class="button-group">
+            <button @click="toggleTimer">{{ timerRunning ? 'Pauzeer' : 'Start' }} kwart</button>
+            <button class="secondary" @click="nextQuarter" :disabled="currentQuarter === maxQuarters">Volgende kwart</button>
+            <button class="danger" @click="resetQuarter" :disabled="timerRunning && elapsedSeconds > 0">Reset kwart</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="quarter-info">
+        <div>
+          <strong>Huidig kwart:</strong> {{ currentQuarter }} / {{ maxQuarters }}
+        </div>
+        <div>
+          <strong>Doelen per kwart:</strong> {{ quarterDurationLabel }} ({{ quarterDurationMinutes }} minuten)
+        </div>
+        <div>
+          <strong>Status:</strong>
+          <span v-if="timerRunning">Bezig</span>
+          <span v-else-if="elapsedSeconds >= quarterDurationSeconds">Kwart afgelopen</span>
+          <span v-else>Gepauzeerd</span>
+        </div>
+      </div>
+
+      <div class="button-group" style="margin-top:1.5rem">
+        <button @click="addGoal('team')" :disabled="currentQuarterPassed">+ Doelpunt {{ teamName }}</button>
+        <button class="secondary" @click="addGoal('opponent')" :disabled="currentQuarterPassed">+ Doelpunt {{ opponentName }}</button>
+        <button class="danger" style="background:linear-gradient(120deg,#fde68a,#facc15);color:#422006" @click="generatePdf">📄 PDF samenvatting</button>
+      </div>
+    </section>
+
+    <section class="quarter-table">
+      <h2>Overzicht per kwart</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Kwart</th>
+            <th>{{ teamName }}</th>
+            <th>{{ opponentName }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="quarter in quarterSummary" :key="quarter.number">
+            <td>{{ quarter.number }}</td>
+            <td>{{ quarter.team }}</td>
+            <td>{{ quarter.opponent }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="timeline">
+      <h2>Doelpunten tijdlijn</h2>
+      <p v-if="goals.length === 0" style="color:#e2e8f0; margin:0">Nog geen doelpunten genoteerd.</p>
+      <ul v-else>
+        <li v-for="goal in goals" :key="goal.id" :class="['timeline-entry', goal.team === 'opponent' ? 'opponent' : '']">
+          <div>
+            <strong>{{ goal.team === 'team' ? teamName : opponentName }}</strong>
+            <div>Kwart {{ goal.quarter }} &bull; {{ goal.time }}</div>
+          </div>
+          <span>{{ goal.note }}</span>
+          <button @click="removeGoal(goal.id)">Verwijder</button>
+        </li>
+      </ul>
+    </section>
+  </div>
+
+  <script>
+    const QUARTER_SECONDS = 12 * 60 + 30; // 12,5 minuten
+
+    Vue.createApp({
+      data() {
+        return {
+          teamName: 'Thuisteam',
+          opponentName: 'Uitteam',
+          currentQuarter: 1,
+          maxQuarters: 4,
+          elapsedSeconds: 0,
+          timerRunning: false,
+          timerId: null,
+          goals: []
+        };
+      },
+      computed: {
+        quarterDurationSeconds() {
+          return QUARTER_SECONDS;
+        },
+        quarterDurationMinutes() {
+          return (this.quarterDurationSeconds / 60).toFixed(1).replace('.', ',');
+        },
+        quarterDurationLabel() {
+          return this.formatTime(this.quarterDurationSeconds);
+        },
+        remainingSeconds() {
+          return Math.max(0, this.quarterDurationSeconds - this.elapsedSeconds);
+        },
+        formattedRemaining() {
+          return this.formatTime(this.remainingSeconds);
+        },
+        formattedElapsed() {
+          return this.formatTime(this.elapsedSeconds);
+        },
+        progressPercent() {
+          return Math.min(100, (this.elapsedSeconds / this.quarterDurationSeconds) * 100).toFixed(1);
+        },
+        teamScore() {
+          return this.goals.filter(goal => goal.team === 'team').length;
+        },
+        opponentScore() {
+          return this.goals.filter(goal => goal.team === 'opponent').length;
+        },
+        quarterSummary() {
+          const summary = [];
+          for (let i = 1; i <= this.maxQuarters; i += 1) {
+            const goalsInQuarter = this.goals.filter(goal => goal.quarter === i);
+            summary.push({
+              number: i,
+              team: goalsInQuarter.filter(goal => goal.team === 'team').length,
+              opponent: goalsInQuarter.filter(goal => goal.team === 'opponent').length
+            });
+          }
+          return summary;
+        },
+        currentQuarterPassed() {
+          return this.elapsedSeconds >= this.quarterDurationSeconds;
+        }
+      },
+      methods: {
+        formatTime(totalSeconds) {
+          const minutes = Math.floor(totalSeconds / 60);
+          const seconds = Math.floor(totalSeconds % 60);
+          return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        },
+        toggleTimer() {
+          if (this.timerRunning) {
+            this.pauseTimer();
+          } else {
+            this.startTimer();
+          }
+        },
+        startTimer() {
+          if (this.timerRunning || this.currentQuarter > this.maxQuarters) return;
+          if (this.elapsedSeconds >= this.quarterDurationSeconds) return;
+          this.timerRunning = true;
+          this.timerId = setInterval(() => {
+            if (this.elapsedSeconds >= this.quarterDurationSeconds) {
+              this.finishQuarter();
+              return;
+            }
+            this.elapsedSeconds += 1;
+          }, 1000);
+        },
+        pauseTimer() {
+          this.timerRunning = false;
+          clearInterval(this.timerId);
+          this.timerId = null;
+        },
+        finishQuarter() {
+          this.elapsedSeconds = this.quarterDurationSeconds;
+          this.pauseTimer();
+        },
+        resetQuarter() {
+          this.pauseTimer();
+          this.elapsedSeconds = 0;
+          this.goals = this.goals.filter(goal => goal.quarter !== this.currentQuarter);
+        },
+        nextQuarter() {
+          if (this.currentQuarter >= this.maxQuarters) return;
+          this.pauseTimer();
+          this.elapsedSeconds = 0;
+          this.currentQuarter += 1;
+        },
+        addGoal(team) {
+          const timeStamp = this.formatTime(this.elapsedSeconds);
+          const label = team === 'team' ? this.teamName : this.opponentName;
+          this.goals.push({
+            id: Date.now() + Math.random(),
+            team,
+            quarter: this.currentQuarter,
+            time: timeStamp,
+            note: `Doelpunt voor ${label}`
+          });
+        },
+        removeGoal(id) {
+          this.goals = this.goals.filter(goal => goal.id !== id);
+        },
+        generatePdf() {
+          if (!window.jspdf) return;
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF();
+          const margin = 16;
+          let y = margin;
+
+          const addLine = (text, options = {}) => {
+            const lineHeight = options.lineHeight || 7;
+            const split = doc.splitTextToSize(text, 180);
+            split.forEach(line => {
+              if (y > 280) {
+                doc.addPage();
+                y = margin;
+              }
+              if (options.align) {
+                doc.text(line, options.align === 'center' ? 105 : margin, y, { align: options.align });
+              } else {
+                doc.text(line, margin, y);
+              }
+              y += lineHeight;
+            });
+          };
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(18);
+          doc.text("Wedstrijdsamenvatting", 105, y, { align: "center" });
+          y += 12;
+
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "normal");
+          const now = new Date();
+          addLine(`Datum: ${now.toLocaleDateString('nl-NL')} ${now.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}`);
+          addLine(`Teams: ${this.teamName} vs ${this.opponentName}`);
+          addLine(`Eindstand: ${this.teamScore} - ${this.opponentScore}`);
+          addLine(`Kwartduur: ${this.quarterDurationMinutes} minuten (${this.quarterDurationLabel})`);
+          y += 3;
+
+          doc.setFontSize(14);
+          doc.setFont("helvetica", "bold");
+          addLine("Scores per kwart");
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "normal");
+          this.quarterSummary.forEach(quarter => {
+            addLine(`Kwart ${quarter.number}: ${this.teamName} ${quarter.team} - ${quarter.opponent} ${this.opponentName}`);
+          });
+          y += 2;
+
+          doc.setFontSize(14);
+          doc.setFont("helvetica", "bold");
+          addLine("Doelpunten");
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "normal");
+          if (this.goals.length === 0) {
+            addLine("Er zijn geen doelpunten geregistreerd.");
+          } else {
+            const sortedGoals = [...this.goals].sort((a, b) => {
+              if (a.quarter !== b.quarter) return a.quarter - b.quarter;
+              return a.time.localeCompare(b.time);
+            });
+            sortedGoals.forEach(goal => {
+              addLine(`Kwart ${goal.quarter} - ${goal.time} | ${goal.team === 'team' ? this.teamName : this.opponentName}: ${goal.note}`);
+            });
+          }
+
+          doc.save(`wedstrijd-samenvatting-${this.teamName.replace(/\s+/g, '_')}.pdf`);
+        }
+      },
+      watch: {
+        elapsedSeconds(value) {
+          if (value >= this.quarterDurationSeconds) {
+            this.finishQuarter();
+          }
+        }
+      },
+      beforeUnmount() {
+        if (this.timerId) {
+          clearInterval(this.timerId);
+        }
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
